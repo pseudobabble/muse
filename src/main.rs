@@ -71,12 +71,12 @@ impl Muse {
     // Perform a search operation using the stored WebDriver
     pub async fn search(&mut self, query: &str) -> WebDriverResult<Vec<VideoAttributes>> {
         // Ensure driver is initialized
-        let driver = self.driver.as_ref().expect("Driver not initialized");
 
         let formatted_query = query.replace(" ", "+");
         let search_url = format!("https://www.youtube.com/results?search_query={}", formatted_query);
         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-        println!("Executing search on {}", search_url);
+
+        let driver = self.driver.as_ref().expect("Driver not initialized");
         driver.goto(search_url).await?;
 
 
@@ -106,7 +106,6 @@ impl Muse {
 
         // Define the output template, placing the downloaded file in the specified directory
         let output_template = format!("{}/%(title)s.%(ext)s", download_directory);
-        println!("Saving to '{}'", output_template);
 
         // Execute the youtube-dl command with the desired options for audio extraction
         let status = std::process::Command::new("youtube-dl")
@@ -129,9 +128,8 @@ impl Muse {
         }
     }
 
-    fn view(id: &str) {
-        println!("Viewing '{}'", id);
-        // Implement view logic here
+    pub async fn view(video_url: &str) {
+        println!("Viewing '{}'", video_url);
     }
 }
 
@@ -147,10 +145,7 @@ async fn main() -> WebDriverResult<()> {
     let output = match muse_app.command {
         Commands::Search { query } => {
             let video_attrs = muse.search(&query).await?;
-            json!({
-                "command": "search",
-                "data": video_attrs
-            })
+            json!(video_attrs)
         },
         Commands::Download { id, directory } => {
             let saved_file_path = muse.download(&id, &directory).await;
