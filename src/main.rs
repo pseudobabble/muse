@@ -43,54 +43,42 @@ struct VideoAttributes {
 }
 
 
-struct WebDriverManager {
-    driver_process: Option<Child>,
-}
-
-impl WebDriverManager {
-    /// Starts the chromedriver process and returns an instance of WebDriverManager
-    pub fn new() -> WebDriverResult<Self> {
-        let driver_process = Some(tokio::process::Command::new("chromedriver")
-            .arg("--port=4444")  // Specify the port chromedriver should listen on; match with WebDriver URL
-            .spawn()
-            .expect("Failed to start chromedriver. Is it installed and in PATH?"));
-
-        Ok(WebDriverManager { driver_process })
-    }
-
-    /// Stops the chromedriver process
-    pub async fn stop(&mut self) {
-        if let Some(mut child) = self.driver_process.take() {
-            child.kill().await.expect("Failed to kill chromedriver process");
-        }
-    }
-}
-
-
 struct Muse {
     driver: Option<WebDriver>,
-    driver_process: Option<WebDriverManager>
 }
 
 impl Muse {
     pub async fn new() -> Muse {
-        let web_driver_manager = WebDriverManager::new().unwrap();
-        let mut caps = DesiredCapabilities::chrome();
-        caps.add_chrome_arg("--headless").unwrap();
-        caps.add_chrome_arg("--disable-gpu").unwrap();
+
+        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+
+        let mut caps = DesiredCapabilities::firefox();
+        caps.add_firefox_arg("-headless").unwrap();
 
         let driver = WebDriver::new("http://localhost:4444", caps).await.unwrap();
-        Muse { driver: Some(driver), driver_process: Some(web_driver_manager) }
+        Muse { driver: Some(driver) }
+    }
+
+    pub async fn quit_driver(&mut self) -> WebDriverResult<()> {
+        // Attempt to quit the WebDriver session
+        if let Some(driver) = self.driver.take() {
+            driver.quit().await?;
+        }
+
+        Ok(())
     }
 
     // Perform a search operation using the stored WebDriver
-    pub async fn search(&self, query: &str) -> WebDriverResult<Vec<VideoAttributes>> {
+    pub async fn search(&mut self, query: &str) -> WebDriverResult<Vec<VideoAttributes>> {
         // Ensure driver is initialized
         let driver = self.driver.as_ref().expect("Driver not initialized");
 
         let formatted_query = query.replace(" ", "+");
         let search_url = format!("https://www.youtube.com/results?search_query={}", formatted_query);
-        driver.get(search_url).await?;
+        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+        println!("Executing search on {}", search_url);
+        driver.goto(search_url).await?;
+
 
         let video_elements = driver.find_all(By::Css("a#video-title")).await?;
 
@@ -107,20 +95,10 @@ impl Muse {
 
             video_attrs.push(VideoAttributes { title, id, url });
         }
+        self.quit_driver().await;
 
         Ok(video_attrs)
     }
-
-    // Stop the WebDriver
-    pub async fn stop_webdriver(&mut self) -> WebDriverResult<()> {
-        if let Some(mut driver) = self.driver_process.take() {
-            driver.stop();
-        }
-        Ok(())
-    }
-
-    // Implement `download` and `view` similarly.
-
 
     pub async fn download(&self, video_id: &str, download_directory: &str) -> WebDriverResult<()> {
         // Construct the full YouTube video URL
@@ -128,6 +106,7 @@ impl Muse {
 
         // Define the output template, placing the downloaded file in the specified directory
         let output_template = format!("{}/%(title)s.%(ext)s", download_directory);
+        println!("Saving to '{}'", output_template);
 
         // Execute the youtube-dl command with the desired options for audio extraction
         let status = std::process::Command::new("youtube-dl")
@@ -174,7 +153,7 @@ async fn main() -> WebDriverResult<()> {
             })
         },
         Commands::Download { id, directory } => {
-            let saved_file_path = muse.download(&id, &directory);
+            let saved_file_path = muse.download(&id, &directory).await;
             json!({
                 "id": id,
             })
@@ -188,7 +167,7 @@ async fn main() -> WebDriverResult<()> {
         },
     };
 
-    muse.stop_webdriver().await.expect("Failed to stop WebDriver");
+    muse.quit_driver().await;
 
     // Serializes the output to a string of JSON and prints it.
     println!("{}", to_string_pretty(&output).expect("Failed to serialize output"));
