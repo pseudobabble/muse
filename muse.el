@@ -50,6 +50,8 @@
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "s") 'muse-search)
     (define-key map (kbd "d") 'muse-download-video-at-point)
+    (define-key map (kbd "v") 'muse-view-video-at-point)
+    (define-key map (kbd "o") 'muse-open-video-at-point)
     map)
   "Keymap for Muse major mode.")
 
@@ -127,7 +129,71 @@
       (async-shell-command (format "/home/harry/code/rust/muse/target/debug/muse download %s \"%s\"" id directory))
       (message "Downloading video with id: %s" id))))
 
+(defun muse-view-video-at-point ()
+  "View the video details on the current line, using only its ID."
+  (interactive)
+  ;; Get the current line at point.
+  (let* ((line (thing-at-point 'line t))
+         ;; Split the line using "|" as the delimiter.
+         (line-components (split-string line "|" t))
+         ;; Extract the ID (the first component) and trim whitespace.
+         (id (string-trim (nth 0 line-components)))
+         ;; Call the CLI and get the JSON output as a string.
+         (json-string (shell-command-to-string (format "/home/harry/code/rust/muse/target/debug/muse view %s" id)))
+         ;; Parse the JSON string into an Emacs Lisp data structure.
+         (json-data (json-read-from-string json-string))
+         (buffer-name "*Muse Video View*"))
 
+    ;; Debugging: Print ID and JSON string for verification.
+    ;; (message "Extracted ID: %s" id)
+    ;; (message "JSON string: %s" json-string)
+
+    ;; Setup the new buffer.
+    (with-current-buffer (get-buffer-create buffer-name)
+      (let ((buffer-read-only nil))  ;; Temporarily make buffer writable
+        (erase-buffer) ;; Clear the buffer
+        (muse-mode)  ;; Switch to your custom mode
+
+        ;; Insert video details
+        (let ((ascii-art (cdr (assoc 'image json-data)))
+              (title (cdr (assoc 'title json-data)))
+              (channel (cdr (assoc 'channel json-data)))
+              (url (cdr (assoc 'url json-data)))
+              (sidebar (append (cdr (assoc 'sidebar json-data)) nil)))
+          (insert "Video Details:\n")
+          (insert (format "Title: %s\n" title))
+          (insert (format "Channel: %s\n" channel))
+          (insert (format "URL: %s\n\n" url))
+
+          ;; Position ASCII art
+          (insert "Thumbnail:\n" ascii-art "\n\n")
+
+          ;; List sidebar videos
+          (insert "Sidebar Videos:\n")
+          (dolist (item sidebar)
+            (let ((sb-title (cdr (assoc 'title item)))
+                  (sb-id (cdr (assoc 'id item)))
+                  (sb-url (cdr (assoc 'url item))))
+              (insert (format "%s | %s | %s\n" sb-id sb-title sb-url)))))
+
+        ;; (Optional) Make buffer read-only again after insertion
+        (setq buffer-read-only t))
+      ;; Display the buffer to the user
+      (switch-to-buffer-other-window buffer-name))))
+
+(defun muse-open-video-at-point ()
+  "Open the YouTube link at the current line in the default web browser."
+  (interactive)
+  ;; Get the current line at point.
+  (let* ((line (thing-at-point 'line t))
+         ;; Split the line using "|" as the delimiter and trim each part.
+         (line-components (mapcar 'string-trim (split-string line "|" t))))
+    ;; The YouTube link is expected to be the last component of the line.
+    (let ((youtube-link (car (last line-components))))
+      ;; Check if the YouTube link looks like a valid URL.
+      (if (and youtube-link (string-prefix-p "http" youtube-link))
+          (browse-url youtube-link)  ;; Open the link in the default web browser.
+        (message "No valid YouTube link found on the current line.")))))
 
 ;; Add the mode to the `features` list
 (provide 'muse-mode)

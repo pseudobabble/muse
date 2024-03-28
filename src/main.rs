@@ -165,7 +165,7 @@ impl Muse {
             .arg(image_path)
             .arg("-b")
             .arg("--dither")
-            .args(&["-d", "30,13"])
+            .args(&["-d", "40,20"])
             .arg("-c")
             .output()?;
 
