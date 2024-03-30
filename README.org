@@ -20,7 +20,7 @@ This package contains an Emacs major mode `muse-mode`, and Rust cli.
 - Install `ascii-image-converter`: `sudo apt install ascii-image-converter`
 - Clone this repo and `cargo install --path .`
 - In Emacs, `M-x load-file` and then load `muse.el` in this repo
-- `muse-search` and add the query, then press `d` on a video listed in the resulting buffer to download the audio track, `v` to view the video and its related videos in another buffer, `o` to open the video link in a
+- `muse-search` and add the query, then press `d` on a video listed in the resulting buffer to download the audio track, `v` to view the video and its related videos in another buffer, `o` to open the video link in the system browser.
 ** Notes
 :PROPERTIES:
 :ID:       43b4a4a4-a42a-42ad-9604-f9ec4976610c
@@ -35,3 +35,4 @@ The `muse` cli does not manage the `geckodriver server`, that is responsibility 
 - [ ] Stream video to terminal as ascii art
 - [ ] Add a more sophisticated `transient` menu to control the download options
 - [ ] Add a command to go to the channel for a video, bound to `c`
+- [ ] Add tests
