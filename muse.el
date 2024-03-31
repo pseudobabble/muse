@@ -61,6 +61,7 @@
   (interactive)
   (kill-all-local-variables)
   (use-local-map muse-mode-map)
+  (muse-start-geckodriver)
 
   ;;(set (make-local-variable 'font-lock-defaults) '(muse-mode-keywords))
 
@@ -79,12 +80,13 @@
   "Major mode to manage Youtube music via the muse CLI."
   (use-local-map muse-mode-map))
 
-;; TODO: use https://github.com/TheZoraiz/ascii-image-converter
+
 (defun muse-search ()
-  "Search for muses, parse the JSON results, and display them in a custom buffer."
+  "Search for videos, parse the JSON results, and display them in a custom buffer."
   (interactive)
+  (muse-start-geckodriver)
   (let* ((query (read-string "Search query: "))
-         (raw-json (shell-command-to-string (format "/home/harry/code/rust/muse/target/debug/muse search \"%s\"" query)))
+         (raw-json (shell-command-to-string (format "muse search \"%s\"" query)))
          (json-vector (json-read-from-string raw-json))
          (buffer-name "*Muse Search Results*"))
     (with-current-buffer (get-buffer-create buffer-name)
@@ -126,11 +128,11 @@
     ;; Prompt the user to choose a directory for downloading.
     (let ((directory (read-directory-name "Download directory: ")))
       ;; Perform the download using the obtained ID and directory.
-      (async-shell-command (format "/home/harry/code/rust/muse/target/debug/muse download %s \"%s\"" id directory))
+      (async-shell-command (format "muse download %s \"%s\"" id directory))
       (message "Downloading video with id: %s" id))))
 
 (defun muse-view-video-at-point ()
-  "View the video details on the current line, using only its ID."
+  "View the video on the current line, using only its ID."
   (interactive)
   ;; Get the current line at point.
   (let* ((line (thing-at-point 'line t))
@@ -139,7 +141,7 @@
          ;; Extract the ID (the first component) and trim whitespace.
          (id (string-trim (nth 0 line-components)))
          ;; Call the CLI and get the JSON output as a string.
-         (json-string (shell-command-to-string (format "/home/harry/code/rust/muse/target/debug/muse view %s" id)))
+         (json-string (shell-command-to-string (format "muse view %s" id)))
          ;; Parse the JSON string into an Emacs Lisp data structure.
          (json-data (json-read-from-string json-string))
          (buffer-name "*Muse Video View*"))

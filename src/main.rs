@@ -22,8 +22,9 @@ fn sanitize_filename(filename: &str) -> String {
         .collect()
 }
 
+/// Manage streaming music
 #[derive(Parser)]
-#[clap(name = "Muse", about = "Manage Youtube music", version = "0", author = "someone")]
+#[clap(name = "Muse", about = "Manage streaming music", version = "0", author = "someone")]
 struct MuseApp {
     #[clap(subcommand)]
     command: Commands,
@@ -31,14 +32,21 @@ struct MuseApp {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Search for videos
     Search {
+        /// The query to search
         query: String,
     },
+    /// Download a video
     Download {
+        /// The video id
         id: String,
+        /// The destination directory
         directory: String,
     },
+    /// View a video
     View {
+        /// The video id
         id: String,
     },
 }
